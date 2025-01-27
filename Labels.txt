@@ -4,6 +4,11 @@
 4kvideodownloader
 8x8
 abetterfinderrename11
+abletonlive12intro
+abletonlive12lite
+abletonlive12standard
+abletonlive12suite
+abletonlive12trial
 abstract
 acorn
 acroniscyberprotectconnect
@@ -30,6 +35,8 @@ aldente
 alephone
 alfred
 altserver
+alttab
+amadeuspro2
 amazonchime
 amazoncorretto11jdk
 amazoncorretto17jdk
@@ -58,6 +65,7 @@ archiwareb2go
 archiwarepst
 arduinoide
 arq7
+arturiasoftwarecenter
 asana
 asperaconnect
 atext
@@ -84,6 +92,7 @@ bartender
 basecamp3
 baseline
 baseline-nodaemon
+basictex
 bbedit
 bbeditpkg
 beamstudio
@@ -122,6 +131,7 @@ camtasia2020
 camtasia2021
 camtasia2022
 camtasia2023
+camtasia2024
 camunda
 canva
 carboncopycloner
@@ -212,6 +222,7 @@ debookee
 dedoose
 deepl
 deezer
+defaultfolderx
 depnotify
 desktoppr
 detectxswift
@@ -224,7 +235,7 @@ diskdrill
 diskspace
 displaylinkmanager
 displaylinkmanagergraphicsconnectivity
-displaynote
+docker
 dockutil
 dragonframe5
 drawio
@@ -250,6 +261,7 @@ egnyte
 egnytecore
 egnytewebedit
 elasticvue
+element
 elgatocamerahub
 elgatostreamdeck
 emacs
@@ -331,6 +343,7 @@ grammarly
 grandperspective
 grasshopper
 grooveomnidialerenterpriseedition
+guardianbrowser
 gyazo
 gyazogif
 hancock
@@ -357,6 +370,7 @@ idrive
 idrivethin
 igv
 iina
+ikproductmanager
 imageoptim
 imazingprofileeditor
 inetclearreportsdesigner
@@ -441,6 +455,7 @@ lifesize
 lightburn
 linear
 linearmouse
+logioptions
 logitechoptions
 logitechoptionsplus
 logitune
@@ -525,6 +540,7 @@ mightymike
 mindmanager
 miniconda
 minisim
+miro
 mist
 mist-cli
 mkuser
@@ -632,6 +648,7 @@ polleverywhere
 polylens
 popsql
 portingkit
+postgresapp
 postman
 powermonitor
 prism10
@@ -732,6 +749,7 @@ skim
 skype
 slab
 slack
+sloth
 smartgit
 smartsheet
 smartsvn
@@ -775,6 +793,7 @@ subethaedit
 sublimemerge
 sublimetext
 suitestudio
+supercollider
 superhuman
 supportapp
 surfdrive
@@ -805,6 +824,7 @@ tembo
 tencentmeeting
 texliveutility
 texshop
+texshop-alternative
 textexpander
 textmate
 theunarchiver
@@ -830,12 +850,15 @@ typeface
 typinator
 typora
 uaconnect
+ujamportal
 ultimakercura
 umbrellaroamingclient
 uniconverter
 universaltypeclient
 unnaturalscrollwheels
 utm
+uviportal
+uviworkstation
 vagrant
 vanilla
 venturablocker
@@ -860,6 +883,7 @@ vscodium
 vysor
 wacomdrivers
 wallyezflash
+wavescentral
 weasis
 webex
 webexmeetings
@@ -869,6 +893,7 @@ wechat
 weprint
 whatroute
 whatsapp
+whimsical
 wireshark
 wordservice
 workbrew

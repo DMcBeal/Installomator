@@ -152,6 +152,16 @@ IGNORE_DND_APPS=""
 # IGNORE_DND_APPS="firefox,Google Chrome,Safari,Microsoft Edge,Opera,Amphetamine,caffeinate"
 
 
+# Use proxy for network access
+PROXY=""
+# Use this format for proxy: server.network.dns:port
+# Configure proxy settings so that curl can work through that if needed.
+# Port number is important for the check of access.
+# Please note that some proxy configurations allow text download, but block binary downloads.
+# So could be a situation where curl works for version, but not for download.
+# This error line is then shown: “curl output was: curl: (22) The requested URL returned error: 403”
+
+
 # Swift Dialog integration
 
 # These variables will allow Installomator to communicate progress with Swift Dialog
@@ -337,8 +347,8 @@ if [[ $(/usr/bin/arch) == "arm64" ]]; then
         rosetta2=no
     fi
 fi
-VERSION="10.7beta"
-VERSIONDATE="2025-01-22"
+VERSION="10.8beta"
+VERSIONDATE="2025-01-27"
 
 # MARK: Functions
 
@@ -551,11 +561,11 @@ versionFromGit() {
 xpath() {
 	# the xpath tool changes in Big Sur and now requires the `-e` option
 	if [[ $(sw_vers -buildVersion) > "20A" ]]; then
-		/usr/bin/xpath -e $@
+		/usr/bin/xpath -q -e $@
 		# alternative: switch to xmllint (which is not perl)
 		#xmllint --xpath $@ -
 	else
-		/usr/bin/xpath $@
+		/usr/bin/xpath -q $@
 	fi
 }
 
@@ -606,11 +616,11 @@ getAppVersion() {
 #            targetDir="/Applications/Utilities"
 #        fi
     else
-    #    applist=$(mdfind "kind:application $appName" -0 )
         printlog "name: $name, appName: $appName"
-        applist=$(mdfind "kind:application AND name:$name" -0 )
+        # mdfind now handling if kind is either Application or App
+        applist=$(mdfind "kMDItemContentType:com.apple.application AND kMDItemFSName:\"$name\"" -0 2>/dev/null)
+#        applist=$(mdfind "kMDItemContentType:com.apple.application AND kMDItemFSName:\"$appName\"" -0 2>/dev/null)
 #        printlog "App(s) found: ${applist}" DEBUG
-#        applist=$(mdfind "kind:application AND name:$appName" -0 )
     fi
     if [[ -z $applist ]]; then
         printlog "No previous app found" WARN
@@ -1427,6 +1437,21 @@ fi
 # first argument is the label
 label=$1
 
+# MARK: reading rest of the arguments
+argumentsArray=()
+while [[ -n $1 ]]; do
+    if [[ $1 =~ ".*\=.*" ]]; then
+        # if an argument contains an = character, send it to eval
+        printlog "setting variable from argument $1" INFO
+        argumentsArray+=( $1 )
+        eval $1
+    fi
+    # shift to next argument
+    shift 1
+done
+printlog "Total items in argumentsArray: ${#argumentsArray[@]}" INFO
+printlog "argumentsArray: ${argumentsArray[*]}" INFO
+
 # lowercase the label
 label=${label:l}
 
@@ -1434,6 +1459,21 @@ label=${label:l}
 if [[ $label == "version" ]]; then
     echo "$VERSION"
     exit 0
+fi
+
+# NOTE: Use proxy for network access if defined
+if [[ -n $PROXY ]]; then
+    printlog "Proxy defined: $PROXY, testing access to it" REQ
+    proxyAddress=$(echo $PROXY | cut -d ":" -f1)
+    portNumber=$(echo $PROXY | cut -d ":" -f2)
+    printlog "Proxy: $proxyAddress, Port: $portNumber"
+    if cmdOutput=$(! nc -z -v -G 10 ${proxyAddress} ${portNumber} 2>&1) ; then
+        printlog "$cmdOutput" REQ
+        printlog "ERROR : No proxy connection, skipping this." REQ
+    else
+        printlog "Proxy access detected, so using that." REQ
+        export ALL_PROXY="$PROXY"
+    fi
 fi
 
 # MARK: Logging
@@ -1565,6 +1605,51 @@ abetterfinderrename11)
     downloadURL="https://www.publicspace.net/download/ABFRX11.dmg"
     appNewVersion=$(curl -fs "https://www.publicspace.net/app/signed_abfr11.xml" | xpath '(//rss/channel/item/enclosure/@sparkle:version)' 2>/dev/null | cut -d '"' -f 2)
     expectedTeamID="7Y9KW4ND8W"
+    ;;
+abletonlive12intro)
+    name="Ableton Live 12 Intro"
+    type="dmg"
+    appNewVersion=$(curl -fs "https://www.ableton.com/en/release-notes/live-12/" | grep -A 1 "class=\"release-notes\" id=\"live-" | sed 's/.*-\([0-9\.][0-9\.]*\).*/\1/' | grep -o "[0-9.].[0-9.].[0-9.].[0-9.]*" | head -1 | xargs)
+    appCustomVersion(){ defaults read "/Applications/${name}.app/Contents/Info.plist" CFBundleVersion | cut -d" " -f1 | xargs }
+    downloadURL="https://cdn-downloads.ableton.com/channels/${appNewVersion}/ableton_live_intro_${appNewVersion}_universal.dmg"
+    blockingProcesses=("Live")
+    expectedTeamID="MWR434WD94"
+    ;;
+abletonlive12lite)
+    name="Ableton Live 12 Lite"
+    type="dmg"
+    appNewVersion=$(curl -fs "https://www.ableton.com/en/release-notes/live-12/" | grep -A 1 "class=\"release-notes\" id=\"live-" | sed 's/.*-\([0-9\.][0-9\.]*\).*/\1/' | grep -o "[0-9.].[0-9.].[0-9.].[0-9.]*" | head -1 | xargs)
+    appCustomVersion(){ defaults read "/Applications/${name}.app/Contents/Info.plist" CFBundleVersion | cut -d" " -f1 | xargs }
+    downloadURL="https://cdn-downloads.ableton.com/channels/${appNewVersion}/ableton_live_lite_${appNewVersion}_universal.dmg"
+    blockingProcesses=("Live")
+    expectedTeamID="MWR434WD94"
+    ;;
+abletonlive12standard)
+    name="Ableton Live 12 Standard"
+    type="dmg"
+    appNewVersion=$(curl -fs "https://www.ableton.com/en/release-notes/live-12/" | grep -A 1 "class=\"release-notes\" id=\"live-" | sed 's/.*-\([0-9\.][0-9\.]*\).*/\1/' | grep -o "[0-9.].[0-9.].[0-9.].[0-9.]*" | head -1 | xargs)
+    appCustomVersion(){ defaults read "/Applications/${name}.app/Contents/Info.plist" CFBundleVersion | cut -d" " -f1 | xargs }
+    downloadURL="https://cdn-downloads.ableton.com/channels/${appNewVersion}/ableton_live_standard_${appNewVersion}_universal.dmg"
+    blockingProcesses=("Live")
+    expectedTeamID="MWR434WD94"
+    ;;
+abletonlive12suite)
+    name="Ableton Live 12 Suite"
+    type="dmg"
+    appNewVersion=$(curl -fs "https://www.ableton.com/en/release-notes/live-12/" | grep -A 1 "class=\"release-notes\" id=\"live-" | sed 's/.*-\([0-9\.][0-9\.]*\).*/\1/' | grep -o "[0-9.].[0-9.].[0-9.].[0-9.]*" | head -1 | xargs)
+    appCustomVersion(){ defaults read "/Applications/${name}.app/Contents/Info.plist" CFBundleVersion | cut -d" " -f1 | xargs }
+    downloadURL="https://cdn-downloads.ableton.com/channels/${appNewVersion}/ableton_live_suite_${appNewVersion}_universal.dmg"
+    blockingProcesses=("Live")
+    expectedTeamID="MWR434WD94"
+    ;;
+abletonlive12trial)
+    name="Ableton Live 12 Trial"
+    type="dmg"
+    appNewVersion=$(curl -fs "https://www.ableton.com/en/release-notes/live-12/" | grep -A 1 "class=\"release-notes\" id=\"live-" | sed 's/.*-\([0-9\.][0-9\.]*\).*/\1/' | grep -o "[0-9.].[0-9.].[0-9.].[0-9.]*" | head -1 | xargs)
+    appCustomVersion(){ defaults read "/Applications/${name}.app/Contents/Info.plist" CFBundleVersion | cut -d" " -f1 | xargs }
+    downloadURL="https://cdn-downloads.ableton.com/channels/${appNewVersion}/ableton_live_trial_${appNewVersion}_universal.dmg"
+    blockingProcesses=("Live")
+    expectedTeamID="MWR434WD94"
     ;;
 abstract)
     name="Abstract"
@@ -1817,12 +1902,20 @@ altserver)
     downloadURL="https://cdn.altstore.io/file/altstore/altserver.zip"
     appNewVersion=""
     expectedTeamID="6XVY5G3U44"
-    ;;alttab)
+    ;;
+alttab)
     name="AltTab"
     type="zip"
     downloadURL=$(downloadURLFromGit lwouis alt-tab-macos)
     appNewVersion=$(versionFromGit lwouis alt-tab-macos)
     expectedTeamID="QXD7GW8FHY"
+    ;;
+amadeuspro2)
+	# A powerful audio editing tool for macOS, offering multi-track editing, batch processing, and a variety of sound analysis feature
+    name="Amadeus Pro"
+    type="zip"
+    downloadURL="https://s3.amazonaws.com/AmadeusPro2/AmadeusPro.zip"
+    expectedTeamID="FWDH9W45C2"
     ;;
 amazonchime)
     # credit: @dvsjr macadmins slack
@@ -2103,6 +2196,29 @@ arq7)
     appNewVersion="$(curl -fs "https://arqbackup.com" | grep -io "version .*[0-9.]*.* for macOS" | cut -d ">" -f2 | cut -d "<" -f1)"
     expectedTeamID="48ZCSDVL96"
     ;;
+arturiasoftwarecenter)
+    name="Arturia Software Center"
+    type="pkg"
+    packageID="com.Arturia.ArturiaSoftwareCenter.resources"
+    versionKey="CFBundleVersion"
+    arturiaDetails="$(curl -fsL 'https://www.arturia.com/api/resources?slugs=asc&types=soft')"
+    arturiaCount=0
+    while [[ -z $arturiaMatch ]]
+    do
+        arturiaPlatform=$(getJSONValue "$arturiaDetails" "[$arturiaCount].platform_type" 2>/dev/null)
+        if [ $? -eq 1 ]; then
+         downloadURL=""
+            appNewVersion=""
+            break
+        elif [[ $arturiaPlatform == "mac" ]]; then
+            downloadURL=$(getJSONValue "$arturiaDetails" "[$arturiaCount].permalink")
+            appNewVersion="$(getJSONValue "$arturiaDetails" "[$arturiaCount].version")"
+            break
+        fi
+        arturiaCount=$(( $arturiaCount + 1 ))
+    done
+    expectedTeamID="T53ZHSF36C"
+    ;;
 asana)
     name="Asana"
     type="dmg"
@@ -2305,6 +2421,13 @@ baseline)
     archiveName="Baseline_v[0-9.]*.pkg"
     downloadURL=$(downloadURLFromGit secondsonconsulting Baseline )
     expectedTeamID="7Q6XP5698G"
+    ;;
+basictex)
+    # Small LaTeX alternative to mactex
+    name="BasicTeX"
+    type="pkg"
+    downloadURL="https://mirror.ctan.org/systems/mac/mactex/BasicTeX.pkg"
+    expectedTeamID="RBGCY5RJWM"
     ;;
 bbedit)
     name="BBEdit"
@@ -2614,12 +2737,21 @@ camtasia2022)
     appNewVersion=$(curl -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15" -fs "https://support.techsmith.com/hc/en-us/articles/360004908652-Desktop-Product-Download-Links"  | grep "Camtasia (Mac) 2022" | sed -e 's/.*Camtasia (Mac) //' -e 's/<\/td>.*//')
     expectedTeamID="7TQL462TU8"
     ;;
-camtasia|\
 camtasia2023)
     name="Camtasia 2023"
     type="dmg"
-    downloadURL=$(curl -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15" -fs "https://support.techsmith.com/hc/en-us/articles/360004908652-Desktop-Product-Download-Links" | grep -A 3 "Camtasia (Mac) 2023" | sed 's/.*href="//' | sed 's/".*//' | grep .dmg)
-    appNewVersion=$(curl -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15" -fs "https://support.techsmith.com/hc/en-us/articles/360004908652-Desktop-Product-Download-Links"  | grep "Camtasia (Mac) 2023" | sed -e 's/.*Camtasia (Mac) //' -e 's/<\/td>.*//')
+    sparkleData=$(curl -fsL 'https://sparkle.cloud.techsmith.com/api/v1/AppcastManifest/?version=23.0.0&utm_source=product&utm_medium=cmac&utm_campaign=cm23&ipc_item_name=cmac&ipc_platform=macos')
+    appNewVersion=$( <<<"$sparkleData" xpath 'string(//item/sparkle:shortVersionString)' )
+    downloadURL=$( <<<"$sparkleData" xpath 'string(//item/enclosure/@url)' )
+    expectedTeamID="7TQL462TU8"
+    ;;
+camtasia|\
+camtasia2024)
+    name="Camtasia 2024"
+    type="dmg"
+    sparkleData=$(curl -fsL 'https://sparkle.cloud.techsmith.com/api/v1/AppcastManifest/?version=24.0.0&utm_source=product&utm_medium=cmac&utm_campaign=cm24&ipc_item_name=cmac&ipc_platform=macos')
+    appNewVersion=$( <<<"$sparkleData" xpath 'string(//item/sparkle:shortVersionString)' )
+    downloadURL=$( <<<"$sparkleData" xpath 'string(//item/enclosure/@url)' )
     expectedTeamID="7TQL462TU8"
     ;;
 camunda)
@@ -3068,6 +3200,7 @@ citrixworkspace)
     #credit: Erik Stam (@erikstam) and #Philipp on MacAdmins Slack
     name="Citrix Workspace"
     type="pkgInDmg"
+    curlOptions=( --user-agent "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
     parseURL() {
         urlToParse='https://www.citrix.com/downloads/workspace-app/mac/workspace-app-for-mac-latest.html#ctx-dl-eula-external'
         htmlDocument=$(curl -s -L $urlToParse)
@@ -3079,7 +3212,7 @@ citrixworkspace)
         htmlDocument=$(curl -fs $urlToParse)
         xmllint --html --xpath 'string(//p[contains(., "Version")])' 2> /dev/null <(print $htmlDocument)
     }
-    appNewVersion=$(newVersionString | cut -d ' ' -f2 )
+    appNewVersion=$(newVersionString | cut -d ' ' -f2 | cut -d '(' -f1)
     versionKey="CitrixVersionString"
     expectedTeamID="S272Y5R93J"
     ;;
@@ -3405,7 +3538,8 @@ deezer)
     downloadURL="https://www.deezer.com/desktop/download?platform=darwin&architecture=x64"
     appNewVersion=$(curl -fsLI "$downloadURL" | grep -o "DeezerDesktop_[0-9]*\.[0-9]*\.[0-9]*" | cut -d'_' -f2)
     expectedTeamID="7QLUP2K45C"
-    ;;defaultfolderx)
+    ;;
+defaultfolderx)
     # credit: Gabe Marchan (gabemarchan.com - @darklink87)
     name="Default Folder X"
     type="dmg"
@@ -3485,8 +3619,8 @@ diskdrill)
     type="dmg"
     appname="Disk Drill.app"
     downloadURL="https://dl.cleverfiles.com/diskdrill.dmg"
+    appNewVersion=$( curl -fsL "https://www.cleverfiles.com/releases/auto-update/dd5-newestr.xml" | xpath 'string(//rss/channel/item/enclosure/@sparkle:version)' 2>/dev/null)
     expectedTeamID="A3W62KZY8Z"
-    blockingProcesses=( Disk Drill )
     ;;
 diskspace)
     name="diskspace"
@@ -3512,14 +3646,15 @@ displaylinkmanagergraphicsconnectivity)
     appNewVersion=$(echo "${downloadURL}" | grep -Eo '[0-9]\.[0-9]+(\.[0-9])?')
     expectedTeamID="73YQY62QM3"
     ;;
-displaynote)
-name="displaynote"
-type="pkg"
-packageID="com.displaynote.DisplayNoteApp"
-downloadURL="https://montage-updates.displaynote.com/api/download/f10632d2-9fbf-11e8-8999-ff918fb3468a/vanilla/released/last?app_name=displaynote-mac"
-appNewVersion="$(curl -fsIL "https://montage-updates.displaynote.com/api/download/f10632d2-9fbf-11e8-8999-ff918fb3468a/vanilla/released/last?app_name=displaynote-mac" | grep -i ^Content-Disposition | sed -n 's/.*displaynote-mac-\([0-9.]*\)-released\.pkg.*/\1/p')"
-expectedTeamID="Q3ML87W6WF"
-;;docker)
+    displaynote)
+    name="displaynote"
+    type="pkg"
+    packageID="com.displaynote.DisplayNoteApp"
+    downloadURL="https://montage-updates.displaynote.com/api/download/f10632d2-9fbf-11e8-8999-ff918fb3468a/vanilla/released/last?app_name=displaynote-mac"
+    appNewVersion="$(curl -fsIL "https://montage-updates.displaynote.com/api/download/f10632d2-9fbf-11e8-8999-ff918fb3468a/vanilla/released/last?app_name=displaynote-mac" | grep -i ^Content-Disposition | sed -n 's/.*displaynote-mac-\([0-9.]*\)-released\.pkg.*/\1/p')"
+    expectedTeamID="Q3ML87W6WF"
+    ;;
+docker)
     name="Docker"
     type="dmg"
     if [[ $(arch) == arm64 ]]; then
@@ -3747,7 +3882,8 @@ elasticvue)
     downloadURL="$(downloadURLFromGit cars10 elasticvue)"
     appNewVersion="$(versionFromGit cars10 elasticvue)"
     expectedTeamID="9L4YGY6JVY"
-    ;;element)
+    ;;
+element)
     name="Element"
     type="dmg"
     downloadURL="https://packages.riot.im/desktop/install/macos/Element.dmg"
@@ -4239,7 +4375,7 @@ garminexpress)
     type="pkgInDmg"
     downloadURL="https://download.garmin.com/omt/express/GarminExpress.dmg"
     garminfaqURL=$(curl -sf https://support.garmin.com/capi/content/en-US/\?productID\=168768\&tab\=software\&topicTag\=region_softwareproduct\&productTagName\=topic_express0\&ct\=content\&mr\=5\&locale\=en-US\&si\=0\&tags\=topic_express0%2Cregion_softwareproduct%2C%2C | tr "{" "\n" | grep "Garmin Express" | tr "," "\n" | grep "contentURL" | awk -F "\"" '{print$4}')
-    appNewVersion="$(curl -sfL $garminfaqURL | tr '><' "\n" | grep "Garmin Express for Mac" | head -1 | awk 'sub(/.*Mac: */,""){f=1} f{if ( sub(/ *as of.*/,"") ) f=0; print$2}').0"
+    appNewVersion="$(curl -sfL $garminfaqURL | tr '><' "\n" | grep "Garmin Express for Mac" | head -1 | awk 'sub(/.*Mac: */,""){f=1} f{if ( sub(/ *as of.*/,"") ) f=0; print}').0"
     expectedTeamID="72ES32VZUA"
     appName="Garmin Express.app"
     ;;
@@ -4505,6 +4641,17 @@ grooveomnidialerenterpriseedition)
 	downloadURL="https://groove-dialer.s3.us-west-2.amazonaws.com/electron/enterprise/Groove+OmniDialer+Enterprise+Edition-"$appNewVersion"-universal-mac.zip" 
 	expectedTeamID="ZDYDJ5XPF3"
 ;;
+guardianbrowser)
+	# A privacy-focused web browser designed to enhance security with built-in ad blocking, tracker protection, and encrypted browsing
+    name="Guardian Browser"
+    type="dmg"
+    if [[ $(arch) == i386 ]]; then
+       downloadURL="https://production-archimedes-secure-browser-artifacts.s3.amazonaws.com/latest/mac-x64/guardian-browser-x64.dmg"
+    elif [[ $(arch) == arm64 ]]; then
+       downloadURL="https://production-archimedes-secure-browser-artifacts.s3.amazonaws.com/latest/mac-arm64/guardian-browser-arm64.dmg"
+    fi
+    expectedTeamID="7TCATJSU2Y"
+    ;;
 gyazo)
     # credit: @matins
     name="Gyazo"
@@ -4723,6 +4870,14 @@ iina)
     downloadURL=$(downloadURLFromGit iina iina )
     appNewVersion=$(versionFromGit iina iina )
     expectedTeamID="67CQ77V27R"
+    ;;
+ikproductmanager)
+    name="IK Product Manager"
+    type="pkgInDmg"
+    curlOptions=( -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" -H "Referer: https://www.ikmultimedia.com/" -H "Sec-Fetch-Dest: document" )
+    appNewVersion=$(curl -s 'https://www.ikmultimedia.com/am2/?' -H 'Host: www.ikmultimedia.com'| grep client_latest_version | cut -d\" -f2 | head -1)
+    downloadURL="https://g1.ikmultimedia.com/plugins/ProductManager/ik_product_manager_${appNewVersion}.dmg"
+    expectedTeamID="S78FW55573"
     ;;
 imageoptim)
     name="imageoptim"
@@ -5198,6 +5353,11 @@ jitsimeet)
 joplin)
     name="Joplin"
     type="dmg"
+	if [[ $(arch) == “arm64” ]]; then
+        archiveName="Joplin-[0-9.]*-arm64.DMG"
+    elif [[ $(arch) == “i386” ]]; then
+        archiveName="Joplin-[0-9.]*.dmg"
+    fi
     downloadURL="$(downloadURLFromGit laurent22 joplin)"
     appNewVersion="$(versionFromGit laurent22 joplin)"
     expectedTeamID="A9BXAFS6CT"
@@ -5570,7 +5730,8 @@ linearmouse)
     downloadURL="$(downloadURLFromGit linearmouse linearmouse)"
     appNewVersion="$(versionFromGit linearmouse linearmouse)"
     expectedTeamID="C5686NKYJ7"
-    ;;logioptions|\
+    ;;
+logioptions|\
 logitechoptions)
     name="Logi Options"
     type="pkgInZip"
@@ -5808,8 +5969,10 @@ macports)
     expectedTeamID="QTA3A3B7F3"
     ;;
 mactex)
+    # Big LaTeX distribution. Small alternative is basictex
+    # Includes these apps (maybe in older version): texshop (texshop-alternative), texliveutility, latexit, bibdesk
+    # You might want to run those labels after this one to update apps fully
     name="MacTeX"
-    appName="TeX Live Utility.app"
     type="pkg"
     downloadURL="https://mirror.ctan.org/systems/mac/mactex/MacTeX.pkg"
     expectedTeamID="RBGCY5RJWM"
@@ -6468,7 +6631,8 @@ minisim)
     downloadURL="$(downloadURLFromGit okwasniewski MiniSim)"
     appNewVersion="$(versionFromGit okwasniewski MiniSim)"
     expectedTeamID="Z3M9P6G4WY"
-    ;;miro)
+    ;;
+miro)
     # credit: @matins
     name="Miro"
     type="dmg"
@@ -7358,8 +7522,9 @@ polleverywhere)
 polylens)
     name="Poly Lens"
     type="dmg"
-    appNewVersion=$(curl -fs "https://info.lens.poly.com/lens-dt-rn/atom.xml" | grep -A 1 "<title" | grep -v "Windows Only" | grep "Version" | head -1 | cut -d "[" -f3 | sed 's/Version //g' | sed 's/]]\>\<\/title\>//g')
-    downloadURL="https://swupdate.lens.poly.com/lens-desktop-mac/$appNewVersion/$appNewVersion/PolyLens-$appNewVersion.dmg"
+    polyDetails="$(curl -fs 'https://api.silica-prod01.io.lens.poly.com/graphql' -X POST -H 'Content-Type: application/json' --data-raw '{"operationName":"LensSoftwareUpdateAvailable","variables":{"productId":"lens-desktop-mac","releaseChannel":null},"query":"query LensSoftwareUpdateAvailable($productId: ID!, $releaseChannel: String) {availableProductSoftwareByPid(pid: $productId, releaseChannel: $releaseChannel) {version productBuild {build archiveUrl __typename} __typename}}"}')"
+    appNewVersion=$(getJSONValue "$polyDetails" "data.availableProductSoftwareByPid.version")
+    downloadURL=$(getJSONValue "$polyDetails" "data.availableProductSoftwareByPid.productBuild.archiveUrl")
     expectedTeamID="SKWK2Q7JJV"
     ;;
 popsql)
@@ -7380,6 +7545,15 @@ portingkit)
     downloadURL="https://www.portingkit.com/pub/portingkit/download_latest.php?format=dmg"
     appNewVersion=""
     expectedTeamID="45WEPZ3433"
+    ;;
+postgresapp)
+	#  A full-featured PostgreSQL installation for macOS that includes PostGIS, a user-friendly interface, a convenient menu bar item, and automatic updates
+    name="Postgres"
+    type="dmg"
+    downloadURL=$(downloadURLFromGit PostgresApp PostgresApp)
+    appNewVersion=$(versionFromGit PostgresApp PostgresApp)
+    archiveName="Postgres-$appNewVersion.dmg"
+    expectedTeamID="ZF84SJ5A3G"
     ;;
 postman)
     name="Postman"
@@ -7817,7 +7991,9 @@ ringcentralphone)
 rocket)
     name="Rocket"
     type="dmg"
-    downloadURL="https://macrelease.matthewpalmer.net/Rocket.dmg"
+    rocketFeed=$(curl -fsL "https://macrelease.matthewpalmer.net/distribution/appcasts/rocket.xml")
+    appNewVersion=$(echo "${rocketFeed}" | xpath 'string(//rss/channel/item[last()]/title)' 2>/dev/null)
+    downloadURL=$(echo "${rocketFeed}" | xpath 'string(//rss/channel/item[last()]/enclosure/@url)' 2>/dev/null)
     expectedTeamID="Z4JV2M65MH"
     ;;
 rocketchat)
@@ -8195,6 +8371,15 @@ slack)
     appNewVersion=$( curl -fsIL "${downloadURL}" | grep -i "^location" | cut -d "/" -f7 )
     expectedTeamID="BQR82RBBHL"
     ;;
+sloth)
+	# Shows all open files, directories, sockets, and devices used by running processes, offering detailed insights and management capabilities in a user-friendly interface.
+    name="Sloth"
+    type="zip"
+    archiveName="sloth-[0-9.]*.zip"
+    downloadURL=$(downloadURLFromGit sveinbjornt Sloth)
+    appNewVersion=$(versionFromGit sveinbjornt Sloth)
+    expectedTeamID="5WX26Y89JP"
+    ;;
 smartgit)
     name="SmartGit"
     type="dmg"
@@ -8539,6 +8724,14 @@ suitestudio)
     fi
     expectedTeamID="58KZ58VMJ8"
     ;;
+supercollider)
+	# A platform for audio synthesis and algorithmic composition, featuring real-time audio servers, an interpreted programming language, and an integrated development environment
+    name="SuperCollider"
+    type="dmg"
+    downloadURL=$(downloadURLFromGit "supercollider" "supercollider")
+    appNewVersion=$(versionFromGit "supercollider" "supercollider")
+    expectedTeamID="HE5VJFE9E4"
+    ;;
 superhuman)
     name="superhuman"
     type="dmg"
@@ -8787,11 +8980,22 @@ texliveutility)
     appNewVersion="$(versionFromGit amaxwell tlutility)"
     expectedTeamID="966Z24PX4J"
     ;;
-texshop)
+texshop-alternative)
+    # This label is really an alternative to the original TeXShop, as it might not have the latest version and is not maintained by original developers of TeXShop.
     name="TeXShop"
     type="zip"
     downloadURL="$(downloadURLFromGit TeXShop TeXShop)"
     appNewVersion="$(versionFromGit TeXShop TeXShop)"
+    expectedTeamID="RBGCY5RJWM"
+    ;;
+texshop)
+    # This is the original source of TeXShop, but it is often very slow to download.
+    # A label texshop-alternative exists that is hosted on GitHub, but might not have the latest version and is not maintained by the original developers.
+    # This app needs basictex or mactex for the LaTeX part.
+    name="TeXShop"
+    type="zip"
+    downloadURL="https://pages.uoregon.edu/koch/texshop/texshop-64/texshop.zip"
+    appNewVersion="$(curl -fs https://pages.uoregon.edu/koch/texshop/obtaining.html | xmllint --html --format - | grep "texshop-64/texshop.zip" | grep "Latest TeXShop" | sed -E 's/.*Version ([0-9.]*).*/\1/')"
     expectedTeamID="RBGCY5RJWM"
     ;;
 textexpander)
@@ -9013,6 +9217,17 @@ uaconnect)
     appNewVersion="$(curl -Ifs "$downloadURL" | grep 'location:' | cut -d'_' -f4-6 | tr '_' '.')"
     expectedTeamID="4KAC9AX6CG"
     ;;
+ujamportal)
+    name="UJAM"
+    type="dmg"
+    appNewVersion="$(curl -s -i "https://software.ujam.com/ujamapp/latest-mac.yml" | grep "version" | cut -d" " -f2 | xargs)"
+    if [[ $(arch) == "arm64" ]]; then
+        downloadURL="https://software.ujam.com/ujamapp/UJAM-${appNewVersion}-arm64.dmg"
+    elif [[ $(arch) == "i386" ]]; then
+        downloadURL="https://software.ujam.com/ujamapp/UJAM-${appNewVersion}.dmg"
+    fi
+    expectedTeamID="9PRN6T272N"
+    ;;
 ultimakercura)
     name="Ultimaker Cura"
     type="dmg"
@@ -9060,6 +9275,22 @@ utm)
     downloadURL=$(downloadURLFromGit utmapp UTM )
     appNewVersion=$(versionFromGit utmapp UTM )
     expectedTeamID="WDNLXAD4W8"
+    ;;
+uviportal)
+    name="UVI Portal"
+    type="pkgInDmg"
+    packageID="net.uvi.pkg.uviportal"
+    downloadURL="https://www.uvi.net/dl-portal.php?p=mac"
+    appNewVersion="$(curl -s -i "${downloadURL}" | grep "location" | cut -d\- -f2 | xargs)"
+    expectedTeamID="BB6L4C84AT"
+    ;;
+uviworkstation)
+    name="UVIWorksation"
+    type="pkgInDmg"
+    packageID="net.uvi.pkg.UVIWorkstation.SA"
+    downloadURL="https://www.uvi.net/dwl.php?p=mac"
+    appNewVersion="$(curl -s -i "${downloadURL}" | grep "location" | cut -d\- -f2 | xargs)"
+    expectedTeamID="BB6L4C84AT"
     ;;
 vagrant)
     name="Vagrant"
@@ -9253,6 +9484,13 @@ wallyezflash)
     expectedTeamID="V32BWKSNYH"
     #versionKey="CFBundleVersion"
     ;;
+wavescentral)
+    name="Waves Central"
+    type="dmg"
+    downloadURL="https://cf-installers.waves.com/WavesCentral/Install_Waves_Central.dmg"
+    appNewVersion=$( curl -sf "https://register.waves.com/Autoupdate/Updates/ByProductId/1/central-mac" | grep version | cut -d" " -f2 | xargs )
+    expectedTeamID="GT6E3XD798"
+    ;;
 weasis)
     name="Weasis"
     type="pkg"
@@ -9320,6 +9558,21 @@ whatsapp)
     appNewVersion=$(curl -fsLIXGET "https://web.whatsapp.com/desktop/mac_native/release/?configuration=Release" | grep -i "^location" | grep -m 1 -o "WhatsApp-.*dmg" | sed 's/.*WhatsApp-2.//g' | sed 's/.dmg//g')
     expectedTeamID="57T9237FN3"
     ;;
+whimsical)
+    name="Whimsical"
+    type="dmg"
+    if [[ $(arch) == "arm64" ]]; then
+        downloadURL="https://desktop.whimsical.com/mac/dmg/arm64"
+    elif [[ $(arch) == "i386" ]]; then
+        downloadURL="https://desktop.whimsical.app/mac/dmg/x64"
+    fi
+    appNewVersion=$(curl -sIkL $downloadURL | sed -r '/filename=/!d;s/.*filename=(.*)$/\1/' | awk '{print $2}')
+    expectedTeamID="2N6497CB83"
+    versionKey="CFBundleShortVersionString"
+    appName="Whimsical.app"
+    blockingProcesses=( "Whimsical" )
+    ;;
+    
 wireshark)
     name="Wireshark"
     type="dmg"
@@ -9732,15 +9985,11 @@ zulujdkfx17)
     ;;
 esac
 
-# MARK: finish reading the arguments:
-while [[ -n $1 ]]; do
-    if [[ $1 =~ ".*\=.*" ]]; then
-        # if an argument contains an = character, send it to eval
-        printlog "setting variable from argument $1" INFO
-        eval $1
-    fi
-    # shift to next argument
-    shift 1
+# MARK: reading arguments again
+printlog "Reading arguments again: ${argumentsArray[*]}" INFO
+for argument in "${argumentsArray[@]}"; do
+    printlog "argument: $argument" DEBUG
+    eval $argument
 done
 
 # verify we have everything we need
@@ -10021,9 +10270,14 @@ else
         curlDownloadStatus=$(echo $?)
     fi
 
-    deduplicatelogs "$curlDownload"
-    if [[ $curlDownloadStatus -ne 0 ]]; then
-    #if ! curl --location --fail --silent "$downloadURL" -o "$archiveName"; then
+    # Trying to detect proxy or web filter on downloaded file
+    archiveSHA=$(shasum "$archiveName" | cut -w -f 1)
+    archiveSize=$(du -k "$archiveName" | cut -w -f 1)
+    archiveType=$(file "$archiveName" | cut -d ':' -f2 )
+    printlog "Downloaded $archiveName – Type is $archiveType – SHA is $archiveSHA – Size is $archiveSize kB" INFO
+
+    # Trying to detect download errors, including proxy or web filter blocking on downloaded file
+    if [[ $curlDownloadStatus -ne 0 || $archiveType == *ASCII* ]]; then
         printlog "error downloading $downloadURL" ERROR
         message="$name update/installation failed. This will be logged, so IT can follow up."
         if [[ $currentUser != "loginwindow" && $NOTIFY == "all" ]]; then
@@ -10034,13 +10288,15 @@ else
                 displaynotification "$message" "Error installing $name"
             fi
         fi
-        printlog "File list: $(ls -lh "$archiveName")" ERROR
-        printlog "File type: $(file "$archiveName")" ERROR
-        cleanupAndExit 2 "Error downloading $downloadURL error:\n$logoutput" ERROR
+        if [[ $archiveType == *ASCII* ]]; then
+            firstLines=$(head -c 51170 $archiveName)
+            deduplicatelogs $firstLines
+            cleanupAndExit 2 "File Downloaded is ASCII, we’re probably being blocked by a proxy or filter.  First 5k of file is:\n$logoutput" ERROR
+        else
+            deduplicatelogs "$curlDownload"
+            cleanupAndExit 2 "Error downloading $downloadURL error:\n$logoutput" ERROR
+        fi
     fi
-    printlog "File list: $(ls -lh "$archiveName")" DEBUG
-    printlog "File type: $(file "$archiveName")" DEBUG
-    printlog "curl output was:\n$logoutput" DEBUG
 fi
 
 # MARK: when user is logged in, and app is running, prompt user to quit app
